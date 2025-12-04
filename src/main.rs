@@ -1,13 +1,13 @@
 // Bring Types and Functions from external Crates into Scope
-use axum::{Json, Router, routing::get};
-use serde::Serialize;
+use axum::{Json, Router, extract::Query, routing::get};
+use serde::{Deserialize, Serialize};
 
 // This struct respresents the JSON response
 #[derive(Serialize)]
 struct HealthResponse {
     status: String,
 }
-
+#[derive(Serialize)]
 struct Job {
     id: i32,
     title: String,
@@ -15,6 +15,13 @@ struct Job {
     location: String,
     url: String,
     description: String,
+}
+
+#[derive(Deserialize)]
+struct JobQuery {
+    // Optional keyword to filter jobs
+    // Assume if none we return all jobs
+    keyword: Option<String>,
 }
 
 // Get for health Handler
@@ -26,8 +33,8 @@ async fn health_handler() -> Json<HealthResponse> {
 }
 
 // Handler for GET /jobs
-async fn list_jobs_handler() -> Json<Vec<Job>> {
-    let jobs: Vec<Job> = vec![
+async fn list_jobs_handler(Query(params): Query<JobQuery>) -> Json<Vec<Job>> {
+    let all_jobs: Vec<Job> = vec![
         Job {
             id: 1,
             title: "Rust Backend Engineer".to_string(),
@@ -48,15 +55,35 @@ async fn list_jobs_handler() -> Json<Vec<Job>> {
         },
     ];
 
-    // Wrap the vector in Json so Axum will serialize it to a JSON response body
-    Json(jobs)
+    // If there is no keyword, just return all jobs
+    let Some(keyword) = params.keyword.as_deref() else {
+        return Json(all_jobs);
+    };
+
+    // Lowercase the keyword for case-insensitive matching
+    let keyword_lower = keyword.to_lowercase();
+
+    // Filter jobs where title, company, location, or description contains the keyword
+    let filtered: Vec<Job> = all_jobs
+        .into_iter()
+        .filter(|job| {
+            job.title.to_lowercase().contains(&keyword_lower)
+                || job.company.to_lowercase().contains(&keyword_lower)
+                || job.location.to_lowercase().contains(&keyword_lower)
+                || job.description.to_lowercase().contains(&keyword_lower)
+        })
+        .collect();
+
+    Json(filtered)
 }
 
 // Function for asynic program using Tokio
 #[tokio::main]
 async fn main() {
     // Build a router that can handle GET /health
-    let app = Router::new().route("/health", get(health_handler));
+    let app = Router::new()
+        .route("/health", get(health_handler))
+        .route("/jobs", get(list_jobs_handler));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
