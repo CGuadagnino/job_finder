@@ -1,6 +1,11 @@
 // Bring Types and Functions from external Crates into Scope
-use axum::{Json, Router, extract::Query, routing::get};
+use axum::{
+    Json, Router,
+    extract::{Query, State},
+    routing::get,
+};
 use serde::{Deserialize, Serialize};
+use sqlx::{Row, sqlite::SqlitePool};
 
 // This struct respresents the JSON response
 #[derive(Serialize)]
@@ -17,11 +22,92 @@ struct Job {
     description: String,
 }
 
+#[derive(Debug)]
+// Doesn't require id since it's auto-generated
+struct NewJob {
+    title: String,
+    company: String,
+    location: String,
+    url: String,
+    description: String,
+}
+
 #[derive(Deserialize)]
 struct JobQuery {
     // Optional keyword to filter jobs
     // Assume if none we return all jobs
     keyword: Option<String>,
+}
+
+#[derive(Clone)]
+struct AppState {
+    pool: SqlitePool,
+}
+
+// Init the SQLite Database and return a connection pool
+async fn init_db() -> SqlitePool {
+    // Connect to a local SQLite file named jobs.db
+    // If the file does not exist, SQLite will create it
+    let pool = SqlitePool::connect("sqlite:jobs.db")
+        .await
+        .expect("Failed to connect to SQLite");
+
+    // Create the jobs table if it does not already exist
+    sqlx::query(
+        r#"
+		CREATE TABLE IF NOT EXISTS jobs (
+			id INTEGER PRIMARY KEY,
+			title TEXT NOT NULL,
+			company TEXT NOT NULL,
+			location TEXT NOT NULL,
+			url TEXT NOT NULL,
+			description TEXT NOT NULL
+		);
+		"#,
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to create jobs table");
+
+    // Check if there are any rows in the jobs table
+    let row_count: i64 = sqlx::query(
+        r#"
+		SELECT COUNT(*) as count FROM jobs;
+		"#,
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("Failed to count jobs")
+    .get("count");
+
+    // If the table is empty, insert a couple of example jobs
+    if row_count == 0 {
+        sqlx::query(
+            r#"
+			INSERT INTO jobs (title, company, location, url, description)
+			VALUES
+				(
+					'Rust Backend Engineer',
+					'ExampleCorp',
+					'Remote',
+					'https://example.com/jobs/1',
+					'Work on backend services using Rust and modern web technologies.'
+				),
+				(
+					'Full Stack Engineer (React + Rust)',
+					'DevTools Inc.',
+					'Austin, TX',
+					'https://example.com/jobs/2',
+					'Build full stack features with a React frontend and Rust backend.'
+				);
+			"#,
+        )
+        .execute(&pool)
+        .await
+        .expect("Failed to insert seed jobs");
+    }
+
+    pool
 }
 
 // Get for health Handler
@@ -33,34 +119,42 @@ async fn health_handler() -> Json<HealthResponse> {
 }
 
 // Handler for GET /jobs
-async fn list_jobs_handler(Query(params): Query<JobQuery>) -> Json<Vec<Job>> {
-    let all_jobs: Vec<Job> = vec![
-        Job {
-            id: 1,
-            title: "Rust Backend Engineer".to_string(),
-            company: "ExampleCorp".to_string(),
-            location: "Remote".to_string(),
-            url: "https://example.com/jobs/1".to_string(),
-            description: "Work on backend services using Rust and modern web technologies."
-                .to_string(),
-        },
-        Job {
-            id: 2,
-            title: "Full Stack Engineer (React + Rust)".to_string(),
-            company: "DevTools Inc.".to_string(),
-            location: "Austin, TX".to_string(),
-            url: "https://example.com/jobs/2".to_string(),
-            description: "Build full stack features with a React frontend and Rust backend."
-                .to_string(),
-        },
-    ];
+async fn list_jobs_handler(state: State<AppState>, params: Query<JobQuery>) -> Json<Vec<Job>> {
+    // Extract inner values from the Axum extractors
+    let pool = &state.pool;
+    let params = params.0;
+
+    // Fetch all jobs from the database
+    let rows = sqlx::query(
+        r#"
+		SELECT id, title, company, location, url, description
+		FROM jobs;
+		"#,
+    )
+    .fetch_all(pool)
+    .await
+    .expect("Failed to fetch jobs from database");
+
+    // Map database rows into our Job struct
+    let mut all_jobs: Vec<Job> = Vec::new();
+
+    for row in rows {
+        let job = Job {
+            id: row.get("id"),
+            title: row.get("title"),
+            company: row.get("company"),
+            location: row.get("location"),
+            url: row.get("url"),
+            description: row.get("description"),
+        };
+        all_jobs.push(job);
+    }
 
     // If there is no keyword, just return all jobs
     let Some(keyword) = params.keyword.as_deref() else {
         return Json(all_jobs);
     };
 
-    // Lowercase the keyword for case-insensitive matching
     let keyword_lower = keyword.to_lowercase();
 
     // Filter jobs where title, company, location, or description contains the keyword
@@ -77,13 +171,22 @@ async fn list_jobs_handler(Query(params): Query<JobQuery>) -> Json<Vec<Job>> {
     Json(filtered)
 }
 
+
+// Insert new job into the DB and return the Generated 'id'
+
 // Function for asynic program using Tokio
 #[tokio::main]
 async fn main() {
+    // Init the Database and get a Connection Pool
+    let pool = init_db().await;
+
+    let app_state = AppState { pool: pool.clone() };
+
     // Build a router that can handle GET /health
     let app = Router::new()
         .route("/health", get(health_handler))
-        .route("/jobs", get(list_jobs_handler));
+        .route("/jobs", get(list_jobs_handler))
+        .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
