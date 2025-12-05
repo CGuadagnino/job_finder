@@ -2,6 +2,7 @@
 use axum::{
     Json, Router,
     extract::{Query, State},
+    http::StatusCode,
     routing::get,
 };
 use serde::{Deserialize, Serialize};
@@ -22,7 +23,7 @@ struct Job {
     description: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 // Doesn't require id since it's auto-generated
 struct NewJob {
     title: String,
@@ -171,8 +172,48 @@ async fn list_jobs_handler(state: State<AppState>, params: Query<JobQuery>) -> J
     Json(filtered)
 }
 
-
 // Insert new job into the DB and return the Generated 'id'
+async fn insert_job(pool: &SqlitePool, new_job: &NewJob) -> Result<i64, sqlx::Error> {
+    // Execute an INSERT statement with the values from `new_job`
+    let result = sqlx::query(
+        r#"
+		INSERT INTO jobs (title, company, location, url, description)
+		VALUES (?1, ?2, ?3, ?4, ?5);
+		"#,
+    )
+    .bind(&new_job.title)
+    .bind(&new_job.company)
+    .bind(&new_job.location)
+    .bind(&new_job.url)
+    .bind(&new_job.description)
+    .execute(pool)
+    .await?;
+
+    let id = result.last_insert_rowid();
+    Ok(id)
+}
+
+async fn create_job_handler(
+    state: State<AppState>,
+    payload: Json<NewJob>,
+) -> Result<(StatusCode, Json<Job>), StatusCode> {
+    let pool = &state.pool;
+    let new_job = payload.0;
+    let id = insert_job(pool, &new_job)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let job = Job {
+        id: id as i32,
+        title: new_job.title,
+        company: new_job.company,
+        location: new_job.location,
+        url: new_job.url,
+        description: new_job.description,
+    };
+
+    Ok((StatusCode::CREATED, Json(job)))
+}
 
 // Function for asynic program using Tokio
 #[tokio::main]
@@ -185,7 +226,7 @@ async fn main() {
     // Build a router that can handle GET /health
     let app = Router::new()
         .route("/health", get(health_handler))
-        .route("/jobs", get(list_jobs_handler))
+        .route("/jobs", get(list_jobs_handler).post(create_job_handler))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
