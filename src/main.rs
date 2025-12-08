@@ -45,6 +45,13 @@ struct AppState {
     pool: SqlitePool,
 }
 
+#[derive(Serialize)]
+struct BulkJobResponse {
+    jobs: Vec<Job>,
+    inserted: usize,
+    skipped: usize,
+}
+
 // Init the SQLite Database and return a connection pool
 async fn init_db() -> SqlitePool {
     // Connect to a local SQLite file named jobs.db
@@ -61,7 +68,7 @@ async fn init_db() -> SqlitePool {
 			title TEXT NOT NULL,
 			company TEXT NOT NULL,
 			location TEXT NOT NULL,
-			url TEXT NOT NULL,
+			url TEXT NOT NULL UNIQUE,
 			description TEXT NOT NULL
 		);
 		"#,
@@ -69,44 +76,6 @@ async fn init_db() -> SqlitePool {
     .execute(&pool)
     .await
     .expect("Failed to create jobs table");
-
-    // Check if there are any rows in the jobs table
-    let row_count: i64 = sqlx::query(
-        r#"
-		SELECT COUNT(*) as count FROM jobs;
-		"#,
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("Failed to count jobs")
-    .get("count");
-
-    // If the table is empty, insert a couple of example jobs
-    if row_count == 0 {
-        sqlx::query(
-            r#"
-			INSERT INTO jobs (title, company, location, url, description)
-			VALUES
-				(
-					'Rust Backend Engineer',
-					'ExampleCorp',
-					'Remote',
-					'https://example.com/jobs/1',
-					'Work on backend services using Rust and modern web technologies.'
-				),
-				(
-					'Full Stack Engineer (React + Rust)',
-					'DevTools Inc.',
-					'Austin, TX',
-					'https://example.com/jobs/2',
-					'Build full stack features with a React frontend and Rust backend.'
-				);
-			"#,
-        )
-        .execute(&pool)
-        .await
-        .expect("Failed to insert seed jobs");
-    }
 
     pool
 }
@@ -218,7 +187,7 @@ async fn create_job_handler(
 async fn bulk_create_jobs_handler(
     state: State<AppState>,
     payload: Json<Vec<NewJob>>,
-) -> Result<(StatusCode, Json<Vec<Job>>), StatusCode> {
+) -> Result<(StatusCode, Json<BulkJobResponse>), StatusCode> {
     let pool = &state.pool;
     let new_jobs = payload.0;
 
@@ -236,11 +205,13 @@ async fn bulk_create_jobs_handler(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut created_jobs: Vec<Job> = Vec::new();
+    let mut inserted_count = 0;
+    let mut skipped_count = 0;
 
     for new_job in new_jobs {
         let result = sqlx::query(
             r#"
-		INSERT INTO jobs (title, company, location, url, description)
+		INSERT OR IGNORE INTO jobs (title, company, location, url, description)
 		VALUES (?1, ?2, ?3, ?4, ?5);
 		"#,
         )
@@ -253,17 +224,21 @@ async fn bulk_create_jobs_handler(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let id = result.last_insert_rowid();
-        let job = Job {
-            id: id as i32,
-            title: new_job.title,
-            company: new_job.company,
-            location: new_job.location,
-            url: new_job.url,
-            description: new_job.description,
-        };
-
-        created_jobs.push(job);
+        if result.rows_affected() > 0 {
+            let id = result.last_insert_rowid();
+            let job = Job {
+                id: id as i32,
+                title: new_job.title,
+                company: new_job.company,
+                location: new_job.location,
+                url: new_job.url,
+                description: new_job.description,
+            };
+            created_jobs.push(job);
+            inserted_count += 1;
+        } else {
+            skipped_count += 1;
+        }
     }
 
     transaction
@@ -271,7 +246,14 @@ async fn bulk_create_jobs_handler(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok((StatusCode::CREATED, Json(created_jobs)))
+    Ok((
+        StatusCode::CREATED,
+        Json(BulkJobResponse {
+            jobs: created_jobs,
+            inserted: inserted_count,
+            skipped: skipped_count,
+        }),
+    ))
 }
 
 // Function for asynic program using Tokio

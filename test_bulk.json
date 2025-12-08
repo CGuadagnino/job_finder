@@ -3,21 +3,210 @@
     "title": "Senior Rust Engineer",
     "company": "Cloudflare",
     "location": "Remote",
-    "url": "https://cloudflare.com/careers/rust",
-    "description": "Build high-performance edge computing systems"
+    "url": "https://cloudflare.com/careers/rust-001",
+    "description": "Build high-performance edge computing systems with Rust"
   },
   {
     "title": "Backend Developer",
     "company": "Discord",
     "location": "San Francisco, CA",
-    "url": "https://discord.com/jobs",
+    "url": "https://discord.com/jobs/backend-002",
     "description": "Scale real-time communication infrastructure"
   },
   {
     "title": "Systems Programmer",
     "company": "Oxide Computer",
     "location": "Remote",
-    "url": "https://oxide.computer/careers",
+    "url": "https://oxide.computer/careers/systems-003",
     "description": "Design rack-scale cloud computers in Rust"
+  },
+  {
+    "title": "Full Stack Engineer",
+    "company": "Figma",
+    "location": "New York, NY",
+    "url": "https://figma.com/careers/fullstack-004",
+    "description": "Build collaborative design tools with React and WebAssembly"
+  },
+  {
+    "title": "DevOps Engineer",
+    "company": "HashiCorp",
+    "location": "Austin, TX",
+    "url": "https://hashicorp.com/jobs/devops-005",
+    "description": "Maintain infrastructure automation tools"
+  },
+  {
+    "title": "Security Engineer",
+    "company": "1Password",
+    "location": "Toronto, Canada",
+    "url": "https://1password.com/careers/security-006",
+    "description": "Secure password management infrastructure"
+  },
+  {
+    "title": "Platform Engineer",
+    "company": "Vercel",
+    "location": "Remote",
+    "url": "https://vercel.com/careers/platform-007",
+    "description": "Build edge-native deployment platform"
+  },
+  {
+    "title": "Senior Rust Engineer",
+    "company": "Cloudflare",
+    "location": "Remote",
+    "url": "https://cloudflare.com/careers/rust-001",
+    "description": "DUPLICATE - This should be skipped"
+  },
+  {
+    "title": "Database Engineer",
+    "company": "PlanetScale",
+    "location": "Remote",
+    "url": "https://planetscale.com/careers/database-008",
+    "description": "Work on distributed MySQL platform"
+  },
+  {
+    "title": "ML Engineer",
+    "company": "Anthropic",
+    "location": "San Francisco, CA",
+    "url": "https://anthropic.com/careers/ml-009",
+    "description": "Build safe and beneficial AI systems"
+  },
+  {
+    "title": "Frontend Engineer",
+    "company": "Linear",
+    "location": "Remote",
+    "url": "https://linear.app/careers/frontend-010",
+    "description": "Create beautiful project management tools"
+  },
+  {
+    "title": "Site Reliability Engineer",
+    "company": "Datadog",
+    "location": "Boston, MA",
+    "url": "https://datadog.com/careers/sre-011",
+    "description": "Monitor and optimize cloud infrastructure"
+  },
+  {
+    "title": "iOS Developer",
+    "company": "Stripe",
+    "location": "Seattle, WA",
+    "url": "https://stripe.com/careers/ios-012",
+    "description": "Build mobile payment solutions"
+  },
+  {
+    "title": "Backend Developer",
+    "company": "Discord",
+    "location": "San Francisco, CA",
+    "url": "https://discord.com/jobs/backend-002",
+    "description": "DUPLICATE - This should be skipped"
+  },
+  {
+    "title": "Data Engineer",
+    "company": "Snowflake",
+    "location": "San Mateo, CA",
+    "url": "https://snowflake.com/careers/data-013",
+    "description": "Build cloud data warehouse infrastructure"
+  },
+  {
+    "title": "Security Researcher",
+    "company": "Trail of Bits",
+    "location": "Remote",
+    "url": "https://trailofbits.com/careers/researcher-014",
+    "description": "Audit smart contracts and cryptographic systems"
+  },
+  {
+    "title": "Embedded Engineer",
+    "company": "Tesla",
+    "location": "Palo Alto, CA",
+    "url": "https://tesla.com/careers/embedded-015",
+    "description": "Develop vehicle control systems"
+  },
+  {
+    "title": "Cloud Architect",
+    "company": "AWS",
+    "location": "Seattle, WA",
+    "url": "https://aws.amazon.com/careers/architect-016",
+    "description": "Design scalable cloud solutions"
+  },
+  {
+    "title": "Performance Engineer",
+    "company": "Meta",
+    "location": "Menlo Park, CA",
+    "url": "https://meta.com/careers/performance-017",
+    "description": "Optimize React and backend systems"
+  },
+  {
+    "title": "Blockchain Developer",
+    "company": "Coinbase",
+    "location": "Remote",
+    "url": "https://coinbase.com/careers/blockchain-018",
+    "description": "Build decentralized finance infrastructure"
+  },
+  {
+    "title": "Systems Programmer",
+    "company": "Oxide Computer",
+    "location": "Remote",
+    "url": "https://oxide.computer/careers/systems-003",
+    "description": "DUPLICATE - This should be skipped"
+  },
+  {
+    "title": "API Engineer",
+    "company": "Twilio",
+    "location": "Denver, CO",
+    "url": "https://twilio.com/careers/api-019",
+    "description": "Build communication APIs at scale"
+  },
+  {
+    "title": "Compiler Engineer",
+    "company": "JetBrains",
+    "location": "Munich, Germany",
+    "url": "https://jetbrains.com/careers/compiler-020",
+    "description": "Work on Kotlin and IDE tooling"
+  },
+  {
+    "title": "Network Engineer",
+    "company": "Cisco",
+    "location": "San Jose, CA",
+    "url": "https://cisco.com/careers/network-021",
+    "description": "Design enterprise networking solutions"
+  },
+  {
+    "title": "Game Engine Developer",
+    "company": "Unity",
+    "location": "Austin, TX",
+    "url": "https://unity.com/careers/engine-022",
+    "description": "Build real-time 3D rendering systems"
+  },
+  {
+    "title": "Distributed Systems Engineer",
+    "company": "Cockroach Labs",
+    "location": "New York, NY",
+    "url": "https://cockroachlabs.com/careers/distributed-023",
+    "description": "Work on distributed SQL database"
+  },
+  {
+    "title": "Full Stack Engineer",
+    "company": "Figma",
+    "location": "New York, NY",
+    "url": "https://figma.com/careers/fullstack-004",
+    "description": "DUPLICATE - This should be skipped"
+  },
+  {
+    "title": "Infrastructure Engineer",
+    "company": "GitHub",
+    "location": "Remote",
+    "url": "https://github.com/careers/infra-024",
+    "description": "Scale code hosting platform"
+  },
+  {
+    "title": "Quantum Computing Researcher",
+    "company": "IBM",
+    "location": "Yorktown Heights, NY",
+    "url": "https://ibm.com/careers/quantum-025",
+    "description": "Research quantum algorithms and error correction"
+  },
+  {
+    "title": "Developer Advocate",
+    "company": "Supabase",
+    "location": "Remote",
+    "url": "https://supabase.com/careers/advocate-026",
+    "description": "Help developers build with open-source backend"
   }
 ]
