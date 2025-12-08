@@ -19,7 +19,6 @@ function App() {
     },
   });
 
-  // Extract tech keywords from job title/description
   function extractTags(job: Job): string[] {
     const keywords = [
       'React',
@@ -59,9 +58,10 @@ function App() {
     return [...new Set(found)].slice(0, 5);
   }
 
-  // Client-side filtering with word boundary matching
+  // Only filter if there's a search term
   const filteredJobs = useMemo(() => {
-    if (!searchTerm.trim()) return jobs;
+    // Don't show jobs until user types something
+    if (!searchTerm.trim()) return [];
 
     const search = searchTerm.toLowerCase();
 
@@ -95,12 +95,23 @@ function App() {
             totalCount={jobs.length}
           />
 
-          <JobList
-            jobs={filteredJobs}
-            onJobClick={setSelectedJob}
-            searchTerm={searchTerm}
-            extractTags={extractTags}
-          />
+          {searchTerm.trim() ? (
+            <JobList
+              jobs={filteredJobs}
+              onJobClick={setSelectedJob}
+              searchTerm={searchTerm}
+              extractTags={extractTags}
+            />
+          ) : (
+            <div className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-500">
+              <p className="text-lg">
+                Start typing to search through {jobs.length} jobs
+              </p>
+              <p className="text-sm mt-2">
+                Try: "react", "python", "remote", "senior"
+              </p>
+            </div>
+          )}
 
           <JobModal job={selectedJob} onClose={() => setSelectedJob(null)} />
         </>
