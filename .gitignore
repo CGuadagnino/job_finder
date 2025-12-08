@@ -67,6 +67,7 @@ Thumbs.db
 # Environment variables (root level)
 .env
 .env.local
+backend/.env
 
 # Testing
 coverage/

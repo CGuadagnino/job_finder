@@ -44,8 +44,8 @@ pub async fn fetch_jobs_from_adzuna(
     remote_only: bool,
     max_days_old: Option<u32>,
 ) -> Result<Vec<NewJob>, Box<dyn std::error::Error>> {
-    let app_id = "92f05d40";
-    let app_key = "5c5582e18f9aa65604110fd0f58e9347";
+    let app_id = std::env::var("ADZUNA_APP_ID").expect("ADZUNA_APP_ID must be set in .env");
+    let app_key = std::env::var("ADZUNA_APP_KEY").expect("ADZUNA_APP_KEY must be set in .env");
 
     let mut url = format!(
         "http://api.adzuna.com/v1/api/jobs/us/search/{page}?app_id={app_id}&app_key={app_key}&results_per_page=500&what={keyword}"

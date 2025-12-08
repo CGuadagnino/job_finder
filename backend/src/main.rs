@@ -12,6 +12,8 @@ use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() {
+    dotenvy::dotenv().ok();
+
     // Initialize database
     let pool = db::init_db().await;
     let app_state = AppState { pool };
