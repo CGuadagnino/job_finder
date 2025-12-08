@@ -1,2 +1,73 @@
-/target
-jobs.db
+# ===== RUST BACKEND =====
+
+# Rust build artifacts
+backend/target/
+backend/**/*.rs.bk
+backend/*.pdb
+
+# Cargo lock (optional - some keep this)
+# backend/Cargo.lock
+
+# ===== DATABASE =====
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ===== REACT FRONTEND =====
+
+# Dependencies
+frontend/node_modules/
+frontend/package-lock.json
+
+# Production build
+frontend/dist/
+frontend/build/
+
+# Cache and logs
+frontend/.vite/
+frontend/.cache/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*
+
+# Editor directories
+frontend/.vscode/
+frontend/.idea/
+frontend/*.swp
+frontend/*.swo
+frontend/*~
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# ===== GENERAL =====
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Environment variables (root level)
+.env
+.env.local
+
+# Testing
+coverage/
+.nyc_output/
