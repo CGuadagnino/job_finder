@@ -1,4 +1,6 @@
 // Bring Types and Functions from external Crates into Scope
+mod ingest;
+
 use axum::{
     Json, Router,
     extract::{Query, State},
@@ -38,6 +40,14 @@ struct JobQuery {
     // Optional keyword to filter jobs
     // Assume if none we return all jobs
     keyword: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct IngestQuery {
+    keyword: String,
+    location: String,
+    remote_only: Option<bool>,
+    max_days_old: Option<u32>,
 }
 
 #[derive(Clone)]
@@ -256,6 +266,86 @@ async fn bulk_create_jobs_handler(
     ))
 }
 
+async fn ingest_adzuna_handler(
+    state: State<AppState>,
+    params: Query<IngestQuery>,
+) -> Result<(StatusCode, Json<BulkJobResponse>), StatusCode> {
+    let params = params.0;
+
+    // Fetch jobs from Adzuna API
+    let new_jobs = ingest::fetch_jobs_from_adzuna(
+        &params.keyword,
+        &params.location,
+        1,
+        params.remote_only.unwrap_or(false),
+        params.max_days_old,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let pool = &state.pool;
+
+    // Start transaction
+    let mut transaction = pool
+        .begin()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut created_jobs: Vec<Job> = Vec::new();
+    let mut inserted_count = 0;
+    let mut skipped_count = 0;
+
+    // Insert each job
+    for new_job in new_jobs {
+        let result = sqlx::query(
+            r#"
+            INSERT OR IGNORE INTO jobs (title, company, location, url, description)
+            VALUES (?1, ?2, ?3, ?4, ?5);
+            "#,
+        )
+        .bind(&new_job.title)
+        .bind(&new_job.company)
+        .bind(&new_job.location)
+        .bind(&new_job.url)
+        .bind(&new_job.description)
+        .execute(transaction.as_mut())
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Check if inserted or skipped (duplicate)
+        if result.rows_affected() > 0 {
+            let id = result.last_insert_rowid();
+            let job = Job {
+                id: id as i32,
+                title: new_job.title,
+                company: new_job.company,
+                location: new_job.location,
+                url: new_job.url,
+                description: new_job.description,
+            };
+            created_jobs.push(job);
+            inserted_count += 1;
+        } else {
+            skipped_count += 1;
+        }
+    }
+
+    // Commit transaction
+    transaction
+        .commit()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(BulkJobResponse {
+            jobs: created_jobs,
+            inserted: inserted_count,
+            skipped: skipped_count,
+        }),
+    ))
+}
+
 // Function for asynic program using Tokio
 #[tokio::main]
 async fn main() {
@@ -269,6 +359,7 @@ async fn main() {
         .route("/health", get(health_handler))
         .route("/jobs", get(list_jobs_handler).post(create_job_handler))
         .route("/jobs/bulk", post(bulk_create_jobs_handler))
+        .route("/ingest/adzuna", get(ingest_adzuna_handler))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
