@@ -3,7 +3,7 @@ use axum::{
     Json, Router,
     extract::{Query, State},
     http::StatusCode,
-    routing::get,
+    routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, sqlite::SqlitePool};
@@ -215,6 +215,65 @@ async fn create_job_handler(
     Ok((StatusCode::CREATED, Json(job)))
 }
 
+async fn bulk_create_jobs_handler(
+    state: State<AppState>,
+    payload: Json<Vec<NewJob>>,
+) -> Result<(StatusCode, Json<Vec<Job>>), StatusCode> {
+    let pool = &state.pool;
+    let new_jobs = payload.0;
+
+    if new_jobs.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if new_jobs.len() > 500 {
+        return Err(StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    let mut transaction = pool
+        .begin()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut created_jobs: Vec<Job> = Vec::new();
+
+    for new_job in new_jobs {
+        let result = sqlx::query(
+            r#"
+		INSERT INTO jobs (title, company, location, url, description)
+		VALUES (?1, ?2, ?3, ?4, ?5);
+		"#,
+        )
+        .bind(&new_job.title)
+        .bind(&new_job.company)
+        .bind(&new_job.location)
+        .bind(&new_job.url)
+        .bind(&new_job.description)
+        .execute(transaction.as_mut())
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let id = result.last_insert_rowid();
+        let job = Job {
+            id: id as i32,
+            title: new_job.title,
+            company: new_job.company,
+            location: new_job.location,
+            url: new_job.url,
+            description: new_job.description,
+        };
+
+        created_jobs.push(job);
+    }
+
+    transaction
+        .commit()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((StatusCode::CREATED, Json(created_jobs)))
+}
+
 // Function for asynic program using Tokio
 #[tokio::main]
 async fn main() {
@@ -227,6 +286,7 @@ async fn main() {
     let app = Router::new()
         .route("/health", get(health_handler))
         .route("/jobs", get(list_jobs_handler).post(create_job_handler))
+        .route("/jobs/bulk", post(bulk_create_jobs_handler))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")

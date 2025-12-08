@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Senior Rust Engineer",
+    "company": "Cloudflare",
+    "location": "Remote",
+    "url": "https://cloudflare.com/careers/rust",
+    "description": "Build high-performance edge computing systems"
+  },
+  {
+    "title": "Backend Developer",
+    "company": "Discord",
+    "location": "San Francisco, CA",
+    "url": "https://discord.com/jobs",
+    "description": "Scale real-time communication infrastructure"
+  },
+  {
+    "title": "Systems Programmer",
+    "company": "Oxide Computer",
+    "location": "Remote",
+    "url": "https://oxide.computer/careers",
+    "description": "Design rack-scale cloud computers in Rust"
+  }
+]
