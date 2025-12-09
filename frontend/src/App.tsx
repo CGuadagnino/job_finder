@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { supabase } from './lib/supabase';
 import { Job } from './types';
 import { SearchBar } from './components/SearchBar';
 import { JobList } from './components/JobList';
@@ -10,12 +10,31 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-  // Fetch all jobs once on mount
+  // Fetch all jobs from Supabase
   const { data: jobs = [], isLoading } = useQuery<Job[]>({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const response = await axios.get<Job[]>('http://localhost:3000/jobs');
-      return response.data;
+      let allJobs: Job[] = [];
+      let from = 0;
+      const batchSize = 1000;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .order('id', { ascending: true })
+          .range(from, from + batchSize - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allJobs = [...allJobs, ...data];
+        if (data.length < batchSize) break;
+
+        from += batchSize;
+      }
+
+      return allJobs;
     },
   });
 
