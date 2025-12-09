@@ -99,36 +99,39 @@ function App() {
     });
   }, [jobs, searchTerm]);
 
+  const hasSearched = searchTerm.trim().length > 0;
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       {isLoading ? (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-xl text-gray-600">Loading jobs...</div>
         </div>
       ) : (
         <>
-          <SearchBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            resultsCount={filteredJobs.length}
-          />
+          <div className={`relative ${hasSearched ? '' : 'min-h-screen'}`}>
+            <div
+              className={`transition-all duration-500 ${
+                hasSearched
+                  ? 'relative top-0 p-6'
+                  : 'absolute top-1/2 left-0 right-0 -translate-y-1/2'
+              }`}
+            >
+              <SearchBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                resultsCount={filteredJobs.length}
+              />
+            </div>
+          </div>
 
-          {searchTerm.trim() ? (
+          {searchTerm.trim() && (
             <JobList
               jobs={filteredJobs}
               onJobClick={setSelectedJob}
               searchTerm={searchTerm}
               extractTags={extractTags}
             />
-          ) : (
-            <div className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-500">
-              <p className="text-lg">
-                Start typing to search through {jobs.length} jobs
-              </p>
-              <p className="text-sm mt-2">
-                Try: "react", "python", "remote", "senior"
-              </p>
-            </div>
           )}
 
           <JobModal job={selectedJob} onClose={() => setSelectedJob(null)} />

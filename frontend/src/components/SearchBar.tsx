@@ -1,3 +1,5 @@
+import faviconSrc from '../../public/swe-favicon.svg';
+
 interface SearchBarProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
@@ -10,9 +12,19 @@ export function SearchBar({
   resultsCount,
 }: SearchBarProps) {
   return (
-    <div className="bg-white border-b sticky top-0 z-10">
+    <div
+      className={`bg-white border rounded-lg shadow-sm mx-auto transition-all duration-500 ${
+        searchTerm.trim() ? 'w-full' : 'w-[80vw]'
+      }`}
+    >
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4"> Job Finder</h1>
+        <div className="flex items-center gap-3 mb-4">
+          <img src={faviconSrc} alt="SWE Favicon" className="w-8 h-8" />
+          <h1 className="text-3xl font-bold text-gray-900">
+            Software Job Finder
+          </h1>
+        </div>
+
         <input
           type="text"
           value={searchTerm}

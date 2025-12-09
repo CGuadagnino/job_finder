@@ -58,15 +58,20 @@ export function JobList({
   const visibleJobs = jobs.slice(0, visibleCount);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="max-w-4xl mx-auto px-4 py-6 animate-fadeIn">
       <div className="space-y-3">
-        {visibleJobs.map((job) => (
-          <JobCard
+        {visibleJobs.map((job, index) => (
+          <div
             key={job.id}
-            job={job}
-            onClick={() => onJobClick(job)}
-            tags={extractTags(job)}
-          />
+            className="animate-slideUp"
+            style={{ animationDelay: `${Math.min(index * 30, 500)}ms` }}
+          >
+            <JobCard
+              job={job}
+              onClick={() => onJobClick(job)}
+              tags={extractTags(job)}
+            />
+          </div>
         ))}
 
         {visibleCount < jobs.length && (
