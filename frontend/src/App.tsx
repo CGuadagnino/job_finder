@@ -82,7 +82,7 @@ function App() {
     // Don't show jobs until user types something
     if (!searchTerm.trim()) return [];
 
-    const search = searchTerm.toLowerCase();
+    const searchTerms = searchTerm.toLowerCase().split(/\s+/); // Split by spaces
 
     return jobs.filter((job) => {
       const searchableText = [
@@ -94,8 +94,8 @@ function App() {
         .join(' ')
         .toLowerCase();
 
-      const regex = new RegExp(`\\b${search}\\b`, 'i');
-      return regex.test(searchableText);
+      // Check if ANY of the search terms match
+      return searchTerms.some((term) => searchableText.includes(term));
     });
   }, [jobs, searchTerm]);
 
