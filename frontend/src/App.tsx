@@ -92,7 +92,6 @@ function App() {
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             resultsCount={filteredJobs.length}
-            totalCount={jobs.length}
           />
 
           {searchTerm.trim() ? (
