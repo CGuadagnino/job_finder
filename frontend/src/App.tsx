@@ -5,6 +5,7 @@ import { Job } from './types';
 import { SearchBar } from './components/SearchBar';
 import { JobList } from './components/JobList';
 import { JobModal } from './components/JobModal';
+import { LoadingSpinner } from './components/loadingSpinner';
 
 function App() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,9 +105,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100">
       {isLoading ? (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-xl text-gray-600">Loading jobs...</div>
-        </div>
+        <LoadingSpinner />
       ) : (
         <>
           <div className={`relative ${hasSearched ? '' : 'min-h-screen'}`}>

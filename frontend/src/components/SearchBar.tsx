@@ -1,4 +1,4 @@
-import faviconSrc from '../../public/swe-favicon.svg';
+import faviconSrc from '../assets/swe-favicon.svg';
 
 interface SearchBarProps {
   searchTerm: string;
