@@ -13,7 +13,7 @@ export function LoadingSpinner() {
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % phrases.length);
-    }, 450);
+    }, 600);
 
     return () => clearInterval(interval);
   }, []);
