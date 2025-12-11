@@ -5,11 +5,11 @@ use axum::{
     extract::{Query, State},
     http::StatusCode,
 };
-use sqlx::{Row, sqlite::SqlitePool};
+use sqlx::{Row, postgres::PgPool};
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: SqlitePool,
+    pub pool: PgPool, // Changed from SqlitePool
 }
 
 pub async fn list_jobs_handler(state: State<AppState>, params: Query<JobQuery>) -> Json<Vec<Job>> {
@@ -27,7 +27,6 @@ pub async fn list_jobs_handler(state: State<AppState>, params: Query<JobQuery>) 
     .expect("Failed to fetch jobs from database");
 
     let mut all_jobs: Vec<Job> = Vec::new();
-
     for row in rows {
         let job = Job {
             id: row.get("id"),
@@ -45,7 +44,6 @@ pub async fn list_jobs_handler(state: State<AppState>, params: Query<JobQuery>) 
     };
 
     let keyword_lower = keyword.to_lowercase();
-
     let filtered: Vec<Job> = all_jobs
         .into_iter()
         .filter(|job| {
@@ -65,6 +63,7 @@ pub async fn create_job_handler(
 ) -> Result<(StatusCode, Json<Job>), StatusCode> {
     let pool = &state.pool;
     let new_job = payload.0;
+
     let id = insert_job(pool, &new_job)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -106,10 +105,13 @@ pub async fn bulk_create_jobs_handler(
     let mut skipped_count = 0;
 
     for new_job in new_jobs {
+        // PostgreSQL uses ON CONFLICT instead of INSERT OR IGNORE
         let result = sqlx::query(
             r#"
-            INSERT OR IGNORE INTO jobs (title, company, location, url, description)
-            VALUES (?1, ?2, ?3, ?4, ?5);
+            INSERT INTO jobs (title, company, location, url, description)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (url) DO NOTHING
+            RETURNING id;
             "#,
         )
         .bind(&new_job.title)
@@ -117,12 +119,13 @@ pub async fn bulk_create_jobs_handler(
         .bind(&new_job.location)
         .bind(&new_job.url)
         .bind(&new_job.description)
-        .execute(transaction.as_mut())
+        .fetch_optional(transaction.as_mut())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        if result.rows_affected() > 0 {
-            let id = result.last_insert_rowid();
+        // If RETURNING gives us an id, it was inserted
+        if let Some(row) = result {
+            let id: i64 = row.get("id");
             let job = Job {
                 id: id as i32,
                 title: new_job.title,
@@ -134,6 +137,7 @@ pub async fn bulk_create_jobs_handler(
             created_jobs.push(job);
             inserted_count += 1;
         } else {
+            // Conflict occurred, job was skipped
             skipped_count += 1;
         }
     }
