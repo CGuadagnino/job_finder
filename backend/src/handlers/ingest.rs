@@ -6,7 +6,7 @@ use axum::{
     extract::{Query, State},
     http::StatusCode,
 };
-use sqlx::Row;
+use std::io::{self, Write};
 
 pub async fn ingest_adzuna_handler(
     state: State<AppState>,
@@ -60,8 +60,8 @@ pub async fn ingest_adzuna_handler(
 
     // Insert each job
     for new_job in all_new_jobs {
-        // PostgreSQL uses ON CONFLICT instead of INSERT OR IGNORE
-        let result = sqlx::query(
+        // Try to insert and check if it returned an ID
+        let result: Result<Option<i32>, _> = sqlx::query_scalar(
             r#"
             INSERT INTO jobs (title, company, location, url, description)
             VALUES ($1, $2, $3, $4, $5)
@@ -75,25 +75,29 @@ pub async fn ingest_adzuna_handler(
         .bind(&new_job.url)
         .bind(&new_job.description)
         .fetch_optional(transaction.as_mut())
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .await;
 
-        // If RETURNING gives us an id, it was inserted
-        if let Some(row) = result {
-            let id: i64 = row.get("id");
-            let job = Job {
-                id: id as i32,
-                title: new_job.title,
-                company: new_job.company,
-                location: new_job.location,
-                url: new_job.url,
-                description: new_job.description,
-            };
-            created_jobs.push(job);
-            inserted_count += 1;
-        } else {
-            // Conflict occurred, job was skipped
-            skipped_count += 1;
+        match result {
+            Ok(Some(id)) => {
+                let job = Job {
+                    id: id, // Already i32, no cast needed
+                    title: new_job.title,
+                    company: new_job.company,
+                    location: new_job.location,
+                    url: new_job.url,
+                    description: new_job.description,
+                };
+                created_jobs.push(job);
+                inserted_count += 1;
+            }
+            Ok(None) => {
+                // Conflict - job was skipped
+                skipped_count += 1;
+            }
+            Err(e) => {
+                eprintln!("Error inserting job: {:?}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
         }
     }
 
@@ -103,6 +107,7 @@ pub async fn ingest_adzuna_handler(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     println!("Inserted: {}, Skipped: {}", inserted_count, skipped_count);
+    io::stdout().flush().unwrap(); // Add this line to force output
 
     Ok((
         StatusCode::CREATED,

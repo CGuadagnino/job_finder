@@ -69,7 +69,7 @@ pub async fn create_job_handler(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let job = Job {
-        id: id as i32,
+        id: id, // Changed: removed "as i32"
         title: new_job.title,
         company: new_job.company,
         location: new_job.location,
@@ -125,9 +125,9 @@ pub async fn bulk_create_jobs_handler(
 
         // If RETURNING gives us an id, it was inserted
         if let Some(row) = result {
-            let id: i64 = row.get("id");
+            let id: i32 = row.get("id");
             let job = Job {
-                id: id as i32,
+                id: id,
                 title: new_job.title,
                 company: new_job.company,
                 location: new_job.location,
