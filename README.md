@@ -10,8 +10,9 @@ A full-stack job aggregation platform for software engineers, featuring a Rust b
 - **Smart Tag Extraction** — Automatically detects and displays relevant tech skills (React, Python, AWS, etc.)
 - **Infinite Scroll** — Smooth lazy-loading of job results for optimal performance
 - **Job Detail Modal** — View full job descriptions with direct apply links
-- **Bulk Job Ingestion** — Automated pipeline to fetch jobs from Adzuna API
+- **Bulk Job Ingestion** — Automated pipeline to fetch jobs from Adzuna API and ingest directly to Supabase
 - **Duplicate Prevention** — URL-based deduplication ensures no duplicate listings
+- **Cloud Database Integration** — Direct ingestion to Supabase PostgreSQL for production-ready deployment
 
 ## Tech Stack
 
@@ -30,7 +31,7 @@ A full-stack job aggregation platform for software engineers, featuring a Rust b
 |------------|---------|
 | Rust | Backend language |
 | Axum | Web framework |
-| SQLx | Database driver |
+| SQLx | Database driver (PostgreSQL) |
 | Tokio | Async runtime |
 | Reqwest | HTTP client |
 
@@ -38,8 +39,7 @@ A full-stack job aggregation platform for software engineers, featuring a Rust b
 | Service | Purpose |
 |---------|---------|
 | **Vercel** | Frontend hosting |
-| **Supabase** | PostgreSQL database (production) |
-| SQLite | Local development database |
+| **Supabase** | PostgreSQL database (production & development) |
 | Adzuna API | Job data source |
 
 ## Project Structure
@@ -60,7 +60,8 @@ job_finder/
 │   │       ├── mod.rs
 │   │       └── adzuna.rs     # Adzuna API client
 │   ├── Cargo.toml
-│   └── weekly_ingest.ps1     # Batch job ingestion script
+│   ├── batch_ingest.sh       # Batch job ingestion script (macOS/Linux)
+│   └── weekly_ingest.ps1     # Batch job ingestion script (Windows)
 │
 └── frontend/
     ├── src/
@@ -86,7 +87,7 @@ job_finder/
 - **Rust** (latest stable) — [Install](https://rustup.rs/)
 - **Node.js** v18+ — [Install](https://nodejs.org/)
 - **Adzuna API credentials** — [Sign up](https://developer.adzuna.com/)
-- **Supabase account** (for production) — [Sign up](https://supabase.com/)
+- **Supabase account** — [Sign up](https://supabase.com/)
 
 ### Backend Setup
 
@@ -95,11 +96,17 @@ job_finder/
    cd backend
    ```
 
-2. Create a `.env` file with your Adzuna credentials:
+2. Create a `.env` file with your Adzuna and Supabase credentials:
    ```env
    ADZUNA_APP_ID=your_app_id
    ADZUNA_APP_KEY=your_app_key
+   DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
    ```
+   
+   **Get your DATABASE_URL:**
+   - Go to Supabase Dashboard → Settings → Database
+   - Under "Connection string", select **Session pooler**
+   - Copy the URI and replace `[YOUR-PASSWORD]` with your database password
 
 3. Build and run the server:
    ```bash
@@ -139,7 +146,7 @@ job_finder/
 | `GET` | `/jobs` | List all jobs (optional `?keyword=` filter) |
 | `POST` | `/jobs` | Create a single job |
 | `POST` | `/jobs/bulk` | Bulk create jobs (max 500) |
-| `GET` | `/ingest/adzuna` | Fetch jobs from Adzuna API |
+| `GET` | `/ingest/adzuna` | Fetch jobs from Adzuna API and insert to Supabase |
 
 ### Ingest Query Parameters
 
@@ -161,12 +168,13 @@ curl "http://127.0.0.1:3000/ingest/adzuna?keyword=react+developer&location=calif
 
 ```sql
 CREATE TABLE jobs (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     title TEXT NOT NULL,
     company TEXT NOT NULL,
     location TEXT NOT NULL,
     url TEXT NOT NULL UNIQUE,
-    description TEXT NOT NULL
+    description TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
@@ -175,7 +183,8 @@ CREATE TABLE jobs (
 1. Create a new Supabase project
 2. Run the schema above in the SQL editor
 3. Copy your project URL and anon key to the frontend `.env`
-4. Enable Row Level Security (RLS) and add a read policy for anonymous users:
+4. Copy your database connection string (Session pooler) to the backend `.env`
+5. Enable Row Level Security (RLS) and add a read policy for anonymous users:
    ```sql
    CREATE POLICY "Allow anonymous read access" ON jobs
        FOR SELECT USING (true);
@@ -183,13 +192,30 @@ CREATE TABLE jobs (
 
 ## Job Ingestion
 
-The `weekly_ingest.ps1` PowerShell script automates bulk job ingestion across 50+ search queries covering:
+Automated ingestion scripts are provided for both macOS/Linux (`batch_ingest.sh`) and Windows (`weekly_ingest.ps1`). These scripts perform bulk job ingestion across 50+ search queries covering:
 
 - **Remote positions**: Software engineers, frontend/backend developers, DevOps, ML engineers, mobile developers
 - **California positions**: Same role categories for local opportunities
 
+Each query fetches up to 500 jobs (10 pages × 50 results). The backend automatically:
+- Inserts jobs directly to Supabase PostgreSQL
+- Handles duplicates via `ON CONFLICT (url) DO NOTHING`
+- Returns counts of inserted and skipped jobs
+
 ### Running the Ingestion Script
 
+**macOS/Linux:**
+```bash
+# Ensure backend is running first
+cd backend
+cargo run
+
+# In another terminal, run the ingestion script
+chmod +x batch_ingest.sh
+./batch_ingest.sh
+```
+
+**Windows (PowerShell):**
 ```powershell
 # Ensure backend is running first
 cd backend
@@ -199,7 +225,7 @@ cargo run
 ./weekly_ingest.ps1
 ```
 
-The script fetches up to 500 jobs per query (10 pages × 50 results) and handles duplicates automatically via `INSERT OR IGNORE`.
+The ingestion process typically takes 10-15 minutes and can add thousands of jobs to your database.
 
 ## Environment Variables
 
@@ -209,6 +235,7 @@ The script fetches up to 500 jobs per query (10 pages × 50 results) and handles
 |----------|-------------|
 | `ADZUNA_APP_ID` | Adzuna API application ID |
 | `ADZUNA_APP_KEY` | Adzuna API application key |
+| `DATABASE_URL` | Supabase PostgreSQL connection string (Session pooler) |
 
 ### Frontend (.env)
 
@@ -223,13 +250,26 @@ The script fetches up to 500 jobs per query (10 pages × 50 results) and handles
 
 1. Connect your GitHub repository to Vercel
 2. Set the root directory to `frontend`
-3. Add environment variables in project settings
+3. Add environment variables in project settings:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
 4. Deploy automatically on push to `main`
+
+### Backend (Optional)
+
+The backend can be deployed to services like:
+- **Fly.io** — Rust-friendly with PostgreSQL support
+- **Railway** — Simple deployment with automatic HTTPS
+- **Render** — Free tier available
+
+Or run locally and use the ingestion scripts to populate Supabase directly.
 
 ### Database (Supabase)
 
-1. The production database is hosted on Supabase
-2. Data can be synced by running the ingestion script locally and inserting directly to Supabase, or by setting up a separate backend deployment
+The production database is hosted on Supabase and can be populated by:
+1. Running the backend locally with `DATABASE_URL` pointing to your Supabase instance
+2. Executing the ingestion scripts (`batch_ingest.sh` or `weekly_ingest.ps1`)
+3. Jobs are inserted directly to Supabase in real-time
 
 ## Contributing
 
