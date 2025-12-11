@@ -6,6 +6,7 @@ use axum::{
     extract::{Query, State},
     http::StatusCode,
 };
+use sqlx::Row;
 
 pub async fn ingest_adzuna_handler(
     state: State<AppState>,
@@ -59,10 +60,13 @@ pub async fn ingest_adzuna_handler(
 
     // Insert each job
     for new_job in all_new_jobs {
+        // PostgreSQL uses ON CONFLICT instead of INSERT OR IGNORE
         let result = sqlx::query(
             r#"
-            INSERT OR IGNORE INTO jobs (title, company, location, url, description)
-            VALUES (?1, ?2, ?3, ?4, ?5);
+            INSERT INTO jobs (title, company, location, url, description)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (url) DO NOTHING
+            RETURNING id;
             "#,
         )
         .bind(&new_job.title)
@@ -70,12 +74,13 @@ pub async fn ingest_adzuna_handler(
         .bind(&new_job.location)
         .bind(&new_job.url)
         .bind(&new_job.description)
-        .execute(transaction.as_mut())
+        .fetch_optional(transaction.as_mut())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        if result.rows_affected() > 0 {
-            let id = result.last_insert_rowid();
+        // If RETURNING gives us an id, it was inserted
+        if let Some(row) = result {
+            let id: i64 = row.get("id");
             let job = Job {
                 id: id as i32,
                 title: new_job.title,
@@ -87,6 +92,7 @@ pub async fn ingest_adzuna_handler(
             created_jobs.push(job);
             inserted_count += 1;
         } else {
+            // Conflict occurred, job was skipped
             skipped_count += 1;
         }
     }
@@ -96,7 +102,7 @@ pub async fn ingest_adzuna_handler(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    println!("Inserted: {},  Skipped: {}", inserted_count, skipped_count);
+    println!("Inserted: {}, Skipped: {}", inserted_count, skipped_count);
 
     Ok((
         StatusCode::CREATED,
