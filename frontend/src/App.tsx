@@ -41,6 +41,7 @@ function App() {
 
   function extractTags(job: Job): string[] {
     const keywords = [
+      'Remote',
       'React',
       'Vue',
       'Angular',
