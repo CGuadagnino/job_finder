@@ -211,8 +211,8 @@ cd backend
 cargo run
 
 # In another terminal, run the ingestion script
-chmod +x batch_ingest.sh
-./batch_ingest.sh
+chmod +x weekly_ingest.sh
+./weekly_ingest.sh
 ```
 
 **Windows (PowerShell):**
